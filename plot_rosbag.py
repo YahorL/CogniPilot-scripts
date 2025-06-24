@@ -9,13 +9,25 @@ from scipy.spatial.transform import Slerp
 
 from geometry_msgs.msg import Quaternion
 import tf_transformations
+import os
 
-def quaternion_to_euler321(qx, qy, qz, qw):
-    """Convert quaternion to Euler angles (yaw-pitch-roll, ZYX order)."""
+def quaternion_to_euler321(qx: float, qy: float, qz: float, qw: float) -> np.ndarray:
+    """Convert quaternion to Euler angles (yaw-pitch-roll, ZYX order).
+    
+    Args:
+        qx: Quaternion x component
+        qy: Quaternion y component
+        qz: Quaternion z component
+        qw: Quaternion w component
+        
+    Returns:
+        Euler angles as [yaw, pitch, roll] in radians
+    """
     rotation = R.from_quat([qx, qy, qz, qw])
     return rotation.as_euler('zyx', degrees=False)
 
-def wrap_to_pi(angle):
+def wrap_to_pi(angle: float) -> float:
+    """Wrap angle to [-pi, pi] range."""
     return (angle + np.pi) % (2 * np.pi) - np.pi
 
 def quaternion_difference(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
@@ -42,7 +54,17 @@ def quaternion_difference(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     
     return r_diff.as_quat()
 
-def read_two_odometry_topics(bag_path, topic1, topic2):
+def read_two_odometry_topics(bag_path: str, topic1: str, topic2: str) -> dict:
+    """Read odometry data from two topics in a rosbag.
+    
+    Args:
+        bag_path: Path to the rosbag file
+        topic1: First topic name
+        topic2: Second topic name
+        
+    Returns:
+        Dictionary with topic data containing position, euler angles, quaternions, and timestamps
+    """
     storage_options = StorageOptions(uri=bag_path, storage_id='mcap')
     converter_options = ConverterOptions(input_serialization_format='cdr', output_serialization_format='cdr')
 
@@ -105,17 +127,38 @@ def interpolate_rotations(times_source: np.ndarray, quats_source: np.ndarray, ti
     # Convert back to quaternion array
     return valid_target_times, interpolated_rotations.as_quat()
 
-# Interpolate topic2's data to topic1's timestamps for difference plots
-def interp_to_time1(arr2, time2, time1):
-    # arr2: (N, D), time2: (N,), time1: (M,)
+def interp_to_time1(arr2: np.ndarray, time2: np.ndarray, time1: np.ndarray) -> np.ndarray:
+    """Interpolate topic2's data to topic1's timestamps for difference plots.
+    
+    Args:
+        arr2: Array to interpolate (N, D)
+        time2: Source timestamps (N,)
+        time1: Target timestamps (M,)
+        
+    Returns:
+        Interpolated array (M, D)
+    """
     return np.stack([
         np.interp(time1, time2, arr2[:, i]) for i in range(arr2.shape[1])
     ], axis=1)
 
-
-def compare_and_plot(data, topic1, topic2):
-    poses1 = data[topic1] # ground truth (has more data)
-    poses2 = data[topic2] # estimated (has less data)
+def compare_and_plot(filename: str, topic1: str, topic2: str, rosbag_dir: str = "rosbag") -> None:
+    """Compare and plot odometry data from two topics in a rosbag file.
+    
+    Args:
+        filename: Name of the rosbag file (without full path)
+        topic1: First topic name (typically ground truth)
+        topic2: Second topic name (typically estimated)
+        rosbag_dir: Directory containing rosbag files (default: "rosbag")
+    """
+    # Construct full path to rosbag
+    bag_path = os.path.join(rosbag_dir, filename)
+    
+    # Read data from both topics
+    data = read_two_odometry_topics(bag_path, topic1, topic2)
+    
+    poses1 = data[topic1]  # ground truth (has more data)
+    poses2 = data[topic2]  # estimated (has less data)
 
     pos1 = np.array([p[0] for p in poses1])
     eul1 = np.array([p[1] for p in poses1])
@@ -149,14 +192,13 @@ def compare_and_plot(data, topic1, topic2):
     eul_diff_quat = np.array([quaternion_to_euler321(q[0], q[1], q[2], q[3]) for q in quat_diff_array])
     eul_diff_quat_deg = np.rad2deg(eul_diff_quat)
 
-
     # --- Difference plots (aligned to topic1's time) ---
     # Position difference plot
     plt.figure()
     plt.plot(time1, pos_diff[:, 0], label='Δx')
     plt.plot(time1, pos_diff[:, 1], label='Δy')
     plt.plot(time1, pos_diff[:, 2], label='Δz')
-    plt.title("Position Difference")
+    plt.title(f"Position Difference - {filename}")
     plt.xlabel("Time (s)")
     plt.ylabel("ΔPosition (m)")
     plt.legend()
@@ -167,103 +209,23 @@ def compare_and_plot(data, topic1, topic2):
     plt.plot(valid_times, eul_diff_quat_deg[:, 0], label='ΔYaw')
     plt.plot(valid_times, eul_diff_quat_deg[:, 1], label='ΔPitch')
     plt.plot(valid_times, eul_diff_quat_deg[:, 2], label='ΔRoll')
-    plt.title("Orientation Difference (Quaternion Method)")
+    plt.title(f"Orientation Difference (Quaternion Method) - {filename}")
     plt.xlabel("Time (s)")
     plt.ylabel("ΔAngle (deg)")
     plt.legend()
-    plt.ylim(-5, 5)
+    plt.ylim(-25, 25)
     plt.grid()
-
-    # # --- Raw plots for each topic (vs their own time) ---
-    # # Position elements for both topics (x, y, z)
-    # plt.figure()
-    # plt.plot(time1, pos1[:, 0], label=f'x {topic1}')
-    # plt.plot(time2, pos2[:, 0], label=f'x {topic2}')
-    # plt.title("Position X Comparison")
-    # plt.xlabel("Time (s)")
-    # plt.ylabel("X (m)")
-    # plt.legend()
-    # plt.grid()
-
-    # plt.figure()
-    # plt.plot(time1, pos1[:, 1], label=f'y {topic1}')
-    # plt.plot(time2, pos2[:, 1], label=f'y {topic2}')
-    # plt.title("Position Y Comparison")
-    # plt.xlabel("Time (s)")
-    # plt.ylabel("Y (m)")
-    # plt.legend()
-    # plt.grid()
-
-    # plt.figure()
-    # plt.plot(time1, pos1[:, 2], label=f'z {topic1}')
-    # plt.plot(time2, pos2[:, 2], label=f'z {topic2}')
-    # plt.title("Position Z Comparison")
-    # plt.xlabel("Time (s)")
-    # plt.ylabel("Z (m)")
-    # plt.legend()
-    # plt.grid()
-
-
 
 if __name__ == "__main__":
     rclpy.init()
-    bag_path27 = "rosbag/rosbag2_2025_06_16-20_39_43"
-    bag_path28 = "rosbag/rosbag2_2025_06_16-20_43_02"
-    bag_path29 = "rosbag/rosbag2_2025_06_16-20_50_25"
-    bag_path30 = "rosbag/rosbag2_2025_06_17-10_05_44"  
-    bag_path31 = "rosbag/rosbag2_2025_06_17-10_09_25"
-    bag_path32 = "rosbag/rosbag2_2025_06_17-10_29_24"  
-    bag_path33 = "rosbag/rosbag2_2025_06_17-10_34_01"
-    bag_path34 = "rosbag/rosbag2_2025_06_17-10_36_04"
-    bag_path35 = "rosbag/rosbag2_2025_06_17-10_41_34"
-    bag_path36 = "rosbag/rosbag2_2025_06_17-10_43_39"
-    bag_path37 = "rosbag/rosbag2_2025_06_17-10_47_16"
-    bag_path38 = "rosbag/rosbag2_2025_06_17-11_02_48"
-    bag_path39 = "rosbag/rosbag2_2025_06_17-11_06_48"
-    bag_path40 = "rosbag/rosbag2_2025_06_17-14_07_30"
-    bag_path41 = "rosbag/rosbag2_2025_06_18-20_33_24"
-    bag_path42 = "rosbag/rosbag2_2025_06_18-20_36_03"
-    bag_path43 = "rosbag/rosbag2_2025_06_18-20_38_13"
-    bag_path44 = "rosbag/rosbag2_2025_06_18-20_40_35"
+    
+    # Define topics
     topic1 = "/odom"
     topic2 = "/cerebri/out/odometry"
+    
+    # Usage
+    compare_and_plot("rosbag2_2025_06_18-20_33_24", topic1, topic2)  # fixed attitude estimator
+    compare_and_plot("rosbag2_2025_06_17-11_06_48", topic1, topic2)  # old attitude estimator
 
-    data27 = read_two_odometry_topics(bag_path27, topic1, topic2)
-    data28 = read_two_odometry_topics(bag_path28, topic1, topic2)
-    data29 = read_two_odometry_topics(bag_path29, topic1, topic2)
-    data30 = read_two_odometry_topics(bag_path30, topic1, topic2)   
-    data31 = read_two_odometry_topics(bag_path31, topic1, topic2)
-    data32 = read_two_odometry_topics(bag_path32, topic1, topic2)
-    data33 = read_two_odometry_topics(bag_path33, topic1, topic2)
-    data34 = read_two_odometry_topics(bag_path34, topic1, topic2)
-    data35 = read_two_odometry_topics(bag_path35, topic1, topic2)
-    data36 = read_two_odometry_topics(bag_path36, topic1, topic2)
-    data37 = read_two_odometry_topics(bag_path37, topic1, topic2)
-    data38 = read_two_odometry_topics(bag_path38, topic1, topic2)
-    data39 = read_two_odometry_topics(bag_path39, topic1, topic2)
-    data40 = read_two_odometry_topics(bag_path40, topic1, topic2)
-    data41 = read_two_odometry_topics(bag_path41, topic1, topic2)
-    data42 = read_two_odometry_topics(bag_path42, topic1, topic2)
-    data43 = read_two_odometry_topics(bag_path43, topic1, topic2)
-    data44 = read_two_odometry_topics(bag_path44, topic1, topic2)
     rclpy.shutdown()
- 
-    #compare_and_plot(data27, topic1, topic2)   
-    #compare_and_plot(data28, topic1, topic2)   
-    #compare_and_plot(data29, topic1, topic2)   # no correction
-    #compare_and_plot(data30, topic1, topic2)
-    #compare_and_plot(data31, topic1, topic2)
-    #compare_and_plot(data32, topic1, topic2)
-    #compare_and_plot(data33, topic1, topic2)
-    #compare_and_plot(data34, topic1, topic2)
-    #compare_and_plot(data35, topic1, topic2)
-    #compare_and_plot(data36, topic1, topic2)  # only with mag correction   
-    #compare_and_plot(data37, topic1, topic2)
-    #compare_and_plot(data38, topic1, topic2) # only with mag correction
-    #compare_and_plot(data39, topic1, topic2) # with all corrections
-    #compare_and_plot(data40, topic1, topic2) # only mag correction forward and stop
-    compare_and_plot(data41, topic1, topic2) # fixed attitude estimator
-    #compare_and_plot(data42, topic1, topic2) # fixed attitude estimator, changing yaw only
-    #compare_and_plot(data43, topic1, topic2) # fixed attitude estimator, enabled spin rate
-    #compare_and_plot(data44, topic1, topic2) # fixed attitude estimator, one spin CW
     plt.show()
