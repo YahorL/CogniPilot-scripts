@@ -25,9 +25,9 @@ class PositionPublisher(Node):
         self.timer = self.create_timer(0.1, self.publish_position)  # 10Hz
         
         # Example position data
-        self.x = 5.0
-        self.y = 5.0
-        self.z = 5.0  # 1 meter altitude
+        self.x = 0.0
+        self.y = 0.0
+        self.z = 0.0  # 1 meter altitude
         
     def publish_position(self):
         """Publish current position to the flight controller."""
