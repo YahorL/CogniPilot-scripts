@@ -213,7 +213,7 @@ def compare_and_plot(filename: str, topic1: str, topic2: str, rosbag_dir: str = 
     plt.xlabel("Time (s)")
     plt.ylabel("ΔAngle (deg)")
     plt.legend()
-    plt.ylim(-25, 25)
+    plt.ylim(-5, 5)
     plt.grid()
 
 if __name__ == "__main__":
@@ -224,8 +224,9 @@ if __name__ == "__main__":
     topic2 = "/cerebri/out/odometry"
     
     # Usage
-    compare_and_plot("rosbag2_2025_06_18-20_33_24", topic1, topic2)  # fixed attitude estimator
-    compare_and_plot("rosbag2_2025_06_17-11_06_48", topic1, topic2)  # old attitude estimator
+    #compare_and_plot("rosbag2_2025_06_18-20_33_24", topic1, topic2)  # fixed attitude estimator
+    #compare_and_plot("rosbag2_2025_06_17-11_06_48", topic1, topic2)  # old attitude estimator
+    compare_and_plot("rosbag2_2025_07_03-13_33_45", topic1, topic2)  # estimator pre flight
 
     rclpy.shutdown()
     plt.show()
