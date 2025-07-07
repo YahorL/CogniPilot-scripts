@@ -342,8 +342,9 @@ if __name__ == "__main__":
     #compare_and_plot("rosbag2_2025_07_03-13_33_45", topic1, topic2)  # estimator pre flight
 
     # Add single topic plotting for cerebri/out/odometry
-    #plot_single_topic_odometry("rosbag2_2025_07_04-17_53_47", topic2)  # cerebri/out/odometry
-    plot_single_topic_odometry("rosbag2_2025_07_07-13_58_58", topic2)
+    #plot_single_topic_odometry("rosbag2_2025_07_04-17_53_47", topic2)  # gazebo stationary on the ground
+    #plot_single_topic_odometry("rosbag2_2025_07_07-13_58_58", topic2) # gazebo stationary in flight
+    plot_single_topic_odometry("rosbag2_2025_07_07-18_20_27", topic2) # gazebo stationary in flight with noise
 
     rclpy.shutdown()
     plt.show()
