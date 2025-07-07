@@ -54,6 +54,41 @@ def quaternion_difference(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     
     return r_diff.as_quat()
 
+def read_single_odometry_topic(bag_path: str, topic: str) -> list:
+    """Read odometry data from a single topic in a rosbag.
+    
+    Args:
+        bag_path: Path to the rosbag file
+        topic: Topic name to read
+        
+    Returns:
+        List of tuples containing (position, euler_angles, quaternion, timestamp)
+    """
+    storage_options = StorageOptions(uri=bag_path, storage_id='mcap')
+    converter_options = ConverterOptions(input_serialization_format='cdr', output_serialization_format='cdr')
+
+    reader = SequentialReader()
+    reader.open(storage_options, converter_options)
+
+    data = []
+
+    while reader.has_next():
+        current_topic, msg_data, _ = reader.read_next()
+        if current_topic == topic:
+            msg = deserialize_message(msg_data, Odometry)
+            pos = msg.pose.pose.position
+            ori = msg.pose.pose.orientation
+            stamp = msg.header.stamp
+            timestamp = stamp.sec + stamp.nanosec * 1e-9
+
+            position = np.array([pos.x, pos.y, pos.z])
+            euler = quaternion_to_euler321(ori.x, ori.y, ori.z, ori.w)
+            quaternion = np.array([ori.x, ori.y, ori.z, ori.w])
+
+            data.append((position, euler, quaternion, timestamp))
+
+    return data
+
 def read_two_odometry_topics(bag_path: str, topic1: str, topic2: str) -> dict:
     """Read odometry data from two topics in a rosbag.
     
@@ -142,6 +177,84 @@ def interp_to_time1(arr2: np.ndarray, time2: np.ndarray, time1: np.ndarray) -> n
         np.interp(time1, time2, arr2[:, i]) for i in range(arr2.shape[1])
     ], axis=1)
 
+def plot_single_topic_odometry(filename: str, topic: str, rosbag_dir: str = "rosbag") -> None:
+    """Plot attitude and position data from a single odometry topic.
+    
+    Args:
+        filename: Name of the rosbag file (without full path)
+        topic: Topic name to plot
+        rosbag_dir: Directory containing rosbag files (default: "rosbag")
+    """
+    # Construct full path to rosbag
+    bag_path = os.path.join(rosbag_dir, filename)
+    
+    # Read data from the topic
+    poses = read_single_odometry_topic(bag_path, topic)
+    
+    if not poses:
+        print(f"No data found for topic {topic} in {filename}")
+        return
+    
+    # Extract data
+    positions = np.array([p[0] for p in poses])
+    euler_angles = np.array([p[1] for p in poses])
+    timestamps = np.array([p[3] for p in poses])
+    
+    # Convert to degrees for plotting
+    euler_angles_deg = np.rad2deg(euler_angles)
+    
+    # Create subplots for position and attitude
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
+    fig.suptitle(f'{topic} - {filename}', fontsize=16)
+    
+    # Position plots
+    ax1.plot(timestamps, positions[:, 0], label='X', linewidth=2)
+    ax1.plot(timestamps, positions[:, 1], label='Y', linewidth=2)
+    ax1.plot(timestamps, positions[:, 2], label='Z', linewidth=2)
+    ax1.set_title('Position')
+    ax1.set_xlabel('Time (s)')
+    ax1.set_ylabel('Position (m)')
+    ax1.legend()
+    ax1.grid(True)
+    
+    # 3D trajectory
+    ax2.plot(positions[:, 0], positions[:, 1], linewidth=2)
+    ax2.set_title('2D Trajectory (X-Y)')
+    ax2.set_xlabel('X (m)')
+    ax2.set_ylabel('Y (m)')
+    ax2.grid(True)
+    ax2.axis('equal')
+    
+    # Attitude plots
+    ax3.plot(timestamps, euler_angles_deg[:, 0], label='Yaw', linewidth=2)
+    ax3.plot(timestamps, euler_angles_deg[:, 1], label='Pitch', linewidth=2)
+    ax3.plot(timestamps, euler_angles_deg[:, 2], label='Roll', linewidth=2)
+    ax3.set_title('Euler Angles')
+    ax3.set_xlabel('Time (s)')
+    ax3.set_ylabel('Angle (deg)')
+    ax3.legend()
+    ax3.grid(True)
+    
+    # Altitude plot
+    ax4.plot(timestamps, positions[:, 2], label='Altitude', linewidth=2, color='red')
+    ax4.set_title('Altitude')
+    ax4.set_xlabel('Time (s)')
+    ax4.set_ylabel('Altitude (m)')
+    ax4.legend()
+    ax4.grid(True)
+    
+    plt.tight_layout()
+    
+    # Print some statistics
+    print(f"\nStatistics for {topic} in {filename}:")
+    print(f"Duration: {timestamps[-1] - timestamps[0]:.2f} seconds")
+    print(f"Position range - X: [{positions[:, 0].min():.3f}, {positions[:, 0].max():.3f}] m")
+    print(f"Position range - Y: [{positions[:, 1].min():.3f}, {positions[:, 1].max():.3f}] m")
+    print(f"Position range - Z: [{positions[:, 2].min():.3f}, {positions[:, 2].max():.3f}] m")
+    print(f"Attitude range - Yaw: [{euler_angles_deg[:, 0].min():.1f}, {euler_angles_deg[:, 0].max():.1f}] deg")
+    print(f"Attitude range - Pitch: [{euler_angles_deg[:, 1].min():.1f}, {euler_angles_deg[:, 1].max():.1f}] deg")
+    print(f"Attitude range - Roll: [{euler_angles_deg[:, 2].min():.1f}, {euler_angles_deg[:, 2].max():.1f}] deg")
+
 def compare_and_plot(filename: str, topic1: str, topic2: str, rosbag_dir: str = "rosbag") -> None:
     """Compare and plot odometry data from two topics in a rosbag file.
     
@@ -226,7 +339,11 @@ if __name__ == "__main__":
     # Usage
     #compare_and_plot("rosbag2_2025_06_18-20_33_24", topic1, topic2)  # fixed attitude estimator
     #compare_and_plot("rosbag2_2025_06_17-11_06_48", topic1, topic2)  # old attitude estimator
-    compare_and_plot("rosbag2_2025_07_03-13_33_45", topic1, topic2)  # estimator pre flight
+    #compare_and_plot("rosbag2_2025_07_03-13_33_45", topic1, topic2)  # estimator pre flight
+
+    # Add single topic plotting for cerebri/out/odometry
+    #plot_single_topic_odometry("rosbag2_2025_07_04-17_53_47", topic2)  # cerebri/out/odometry
+    plot_single_topic_odometry("rosbag2_2025_07_07-13_58_58", topic2)
 
     rclpy.shutdown()
     plt.show()

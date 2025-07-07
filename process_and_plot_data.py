@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
 import argparse
 import os
+import csv
 from typing import Dict, List, Tuple, Any
 
 def q31_to_double(q31_value: int, shift: int) -> float:
@@ -437,6 +438,105 @@ def print_data_summary(data: Dict[str, np.ndarray]) -> None:
     
     print("="*50)
 
+def save_data_to_csv(data: Dict[str, np.ndarray], output_dir: str = "plots") -> None:
+    """Save IMU and magnetometer data to CSV files.
+    
+    Args:
+        data: Dictionary containing processed data
+        output_dir: Directory to save CSV files
+    """
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Save IMU data
+    if 'imu' in data and len(data['imu']) > 0:
+        imu_csv_path = os.path.join(output_dir, 'imu_data.csv')
+        print(f"Saving IMU data to {imu_csv_path}...")
+        
+        with open(imu_csv_path, 'w', newline='') as csvfile:
+            fieldnames = ['timestamp', 'gyro_x', 'gyro_y', 'gyro_z', 'accel_x', 'accel_y', 'accel_z']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for row in data['imu']:
+                writer.writerow({
+                    'timestamp': row['t'],
+                    'gyro_x': row['gx'],
+                    'gyro_y': row['gy'],
+                    'gyro_z': row['gz'],
+                    'accel_x': row['ax'],
+                    'accel_y': row['ay'],
+                    'accel_z': row['az']
+                })
+        print(f"Saved {len(data['imu'])} IMU samples")
+    
+    # Save IMU Q31 array data (if available)
+    if 'imu_q31_array' in data and len(data['imu_q31_array']) > 0:
+        imu_q31_csv_path = os.path.join(output_dir, 'imu_q31_data.csv')
+        print(f"Saving IMU Q31 data to {imu_q31_csv_path}...")
+        
+        with open(imu_q31_csv_path, 'w', newline='') as csvfile:
+            fieldnames = ['timestamp', 'gyro_x', 'gyro_y', 'gyro_z', 'accel_x', 'accel_y', 'accel_z', 'temperature']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for row in data['imu_q31_array']:
+                writer.writerow({
+                    'timestamp': row['t'],
+                    'gyro_x': row['gx'],
+                    'gyro_y': row['gy'],
+                    'gyro_z': row['gz'],
+                    'accel_x': row['ax'],
+                    'accel_y': row['ay'],
+                    'accel_z': row['az'],
+                    'temperature': row['temp']
+                })
+        print(f"Saved {len(data['imu_q31_array'])} IMU Q31 samples")
+    
+    # Save magnetometer data
+    if 'mag' in data and len(data['mag']) > 0:
+        mag_csv_path = os.path.join(output_dir, 'magnetometer_data.csv')
+        print(f"Saving magnetometer data to {mag_csv_path}...")
+        
+        with open(mag_csv_path, 'w', newline='') as csvfile:
+            fieldnames = ['timestamp', 'mag_x', 'mag_y', 'mag_z']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for row in data['mag']:
+                writer.writerow({
+                    'timestamp': row['t'],
+                    'mag_x': row['mag_x'],
+                    'mag_y': row['mag_y'],
+                    'mag_z': row['mag_z']
+                })
+        print(f"Saved {len(data['mag'])} magnetometer samples")
+    
+    # Save odometry data (position and orientation)
+    if 'odom' in data and len(data['odom']) > 0:
+        odom_csv_path = os.path.join(output_dir, 'odometry_data.csv')
+        print(f"Saving odometry data to {odom_csv_path}...")
+        
+        with open(odom_csv_path, 'w', newline='') as csvfile:
+            fieldnames = ['timestamp', 'pos_x', 'pos_y', 'pos_z', 'quat_x', 'quat_y', 'quat_z', 'quat_w']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for row in data['odom']:
+                writer.writerow({
+                    'timestamp': row['t'],
+                    'pos_x': row['odom_x'],
+                    'pos_y': row['odom_y'],
+                    'pos_z': row['odom_z'],
+                    'quat_x': row['odom_q0'],
+                    'quat_y': row['odom_q1'],
+                    'quat_z': row['odom_q2'],
+                    'quat_w': row['odom_q3']
+                })
+        print(f"Saved {len(data['odom'])} odometry samples")
+    
+    print(f"CSV files saved to {output_dir}/ directory")
+
 def main():
     """Main function to process and plot data."""
     parser = argparse.ArgumentParser(description='Process protobuf data and plot yaw, pitch, roll, and positions')
@@ -444,6 +544,8 @@ def main():
                        help='Input protobuf file path (default: log_data/data_flight.pb)')
     parser.add_argument('--output', '-o', type=str, default=None,
                        help='Output directory for plots (default: auto-generated from input filename)')
+    parser.add_argument('--csv-only', action='store_true',
+                       help='Only save CSV files, skip plotting')
     
     args = parser.parse_args()
     
@@ -456,7 +558,7 @@ def main():
     if args.output is None:
         # Get the base filename without extension
         base_name = os.path.splitext(os.path.basename(args.input))[0]
-        output_dir = f"plots/plots_{base_name}"
+        output_dir = f"output/output_{base_name}"
     else:
         output_dir = args.output
     
@@ -467,8 +569,12 @@ def main():
         # Print summary
         print_data_summary(data)
         
-        # Create plots
-        plot_data(data, output_dir=output_dir)
+        # Save data to CSV files
+        save_data_to_csv(data, output_dir=output_dir)
+        
+        # Create plots (unless csv-only flag is set)
+        if not args.csv_only:
+            plot_data(data, output_dir=output_dir)
             
     except Exception as e:
         print(f"Error processing data: {e}")
