@@ -139,9 +139,19 @@ def interpolate_rotations(times_source: np.ndarray, quats_source: np.ndarray, ti
         - valid_times: Target times that were within interpolation range (shape: [K,])
         - interpolated_quaternions: Corresponding interpolated quaternions (shape: [K, 4])
     """
+    # Sort source data by timestamp to ensure strictly increasing order
+    sort_indices = np.argsort(times_source)
+    times_source_sorted = times_source[sort_indices]
+    quats_source_sorted = quats_source[sort_indices]
+    
+    # Remove duplicate timestamps (keep first occurrence)
+    unique_indices = np.append([0], np.where(np.diff(times_source_sorted) > 0)[0] + 1)
+    times_source_unique = times_source_sorted[unique_indices]
+    quats_source_unique = quats_source_sorted[unique_indices]
+    
     # Find overlapping time range
-    min_source_time = np.min(times_source)
-    max_source_time = np.max(times_source)
+    min_source_time = np.min(times_source_unique)
+    max_source_time = np.max(times_source_unique)
     
     # Filter target times to be within source range
     valid_mask = (times_target >= min_source_time) & (times_target <= max_source_time)
@@ -151,10 +161,11 @@ def interpolate_rotations(times_source: np.ndarray, quats_source: np.ndarray, ti
         raise ValueError(f"No overlapping time range between source [{min_source_time:.3f}, {max_source_time:.3f}] and target times")
     
     # Convert quaternions to scipy Rotation object
-    rotations_source = R.from_quat(quats_source)
+    rotations_source = R.from_quat(quats_source_unique)
     
-    # Create SLERP interpolator
-    slerp = Slerp(times_source, rotations_source)
+    # Create SLERP interpolator with sorted, unique timestamps
+    print(f"Source times range: [{times_source_unique[0]:.3f}, {times_source_unique[-1]:.3f}], count: {len(times_source_unique)}")
+    slerp = Slerp(times_source_unique, rotations_source)
     
     # Interpolate to valid target times
     interpolated_rotations = slerp(valid_target_times)
@@ -286,7 +297,7 @@ def compare_and_plot(filename: str, topic1: str, topic2: str, rosbag_dir: str = 
     pos_diff = pos1 - pos2_interp
 
     # Get interpolated quaternions for overlapping time range
-    # Interpolates estimated quaternion to ground truth time and return valid time for both arrays
+    # Interpolates estimated quaternion to ground truth time and return valid time for both arrays)
     valid_times, quat2_interp_slerp = interpolate_rotations(time2, quat2, time1)
 
     # Find indices in time1 that correspond to valid_times
@@ -344,7 +355,8 @@ if __name__ == "__main__":
     #compare_and_plot("rosbag2_2025_07_09-19_13_24", topic1, topic2)  # fixed roll/pitch estimation, small gains
     #compare_and_plot("rosbag2_2025_07_15-20_54_12", topic1, topic2)  # 
     #compare_and_plot("rosbag2_2025_07_29-14_31_12", topic1, topic2)  # without correction
-    compare_and_plot("output", topic1, topic2)
+    compare_and_plot("rosbag2_2025_08_04-17_18_05", topic1, topic2)
+    #compare_and_plot("output", topic1, topic2)
 
     # Add single topic plotting for cerebri/out/odometry
     #plot_single_topic_odometry("rosbag2_2025_07_04-17_53_47", topic2)  # gazebo stationary on the ground
