@@ -337,7 +337,7 @@ def compare_and_plot(filename: str, topic1: str, topic2: str, rosbag_dir: str = 
     plt.xlabel("Time (s)")
     plt.ylabel("ΔAngle (deg)")
     plt.legend()
-    plt.ylim(-10, 10)
+    plt.ylim(-5, 5)
     plt.grid()
 
 if __name__ == "__main__":
@@ -355,7 +355,7 @@ if __name__ == "__main__":
     #compare_and_plot("rosbag2_2025_07_09-19_13_24", topic1, topic2)  # fixed roll/pitch estimation, small gains
     #compare_and_plot("rosbag2_2025_07_15-20_54_12", topic1, topic2)  # 
     #compare_and_plot("rosbag2_2025_07_29-14_31_12", topic1, topic2)  # without correction
-    compare_and_plot("rosbag2_2025_08_04-17_18_05", topic1, topic2)
+    compare_and_plot("rosbag2_2025_08_12-17_41_37", topic1, topic2)
     #compare_and_plot("output", topic1, topic2)
 
     # Add single topic plotting for cerebri/out/odometry
