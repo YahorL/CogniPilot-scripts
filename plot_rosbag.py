@@ -355,7 +355,7 @@ if __name__ == "__main__":
     #compare_and_plot("rosbag2_2025_07_09-19_13_24", topic1, topic2)  # fixed roll/pitch estimation, small gains
     #compare_and_plot("rosbag2_2025_07_15-20_54_12", topic1, topic2)  # 
     #compare_and_plot("rosbag2_2025_07_29-14_31_12", topic1, topic2)  # without correction
-    compare_and_plot("rosbag2_2025_08_12-17_41_37", topic1, topic2)
+    compare_and_plot("rosbag2_2025_08_19-15_21_13", topic1, topic2)
     #compare_and_plot("output", topic1, topic2)
 
     # Add single topic plotting for cerebri/out/odometry
