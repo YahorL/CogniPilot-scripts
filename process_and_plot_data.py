@@ -93,7 +93,8 @@ def read_protobuf_data(file_path: str) -> Dict[str, np.ndarray]:
                         
                     case 'pwm':
                         msg = frame.pwm
-                        data['pwm'].append((0, msg.channel[0], msg.channel[1], msg.channel[2], msg.channel[3]))
+                        t = msg.stamp.seconds + msg.stamp.nanos * 1e-9
+                        data['pwm'].append((t, msg.channel[0], msg.channel[1], msg.channel[2], msg.channel[3]))
                         
                     case 'odometry':
                         msg = frame.odometry
@@ -374,7 +375,42 @@ def plot_data(data: Dict[str, np.ndarray], output_dir: str = "plots") -> None:
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir, 'magnetic_field.png'), dpi=300, bbox_inches='tight')
     
-    # 6. Combined Overview Plot
+    # 6. Plot PWM Channels
+    if 'pwm' in data and len(data['pwm']) > 0:
+        fig, axes = plt.subplots(4, 1, figsize=(12, 12), sharex=True)
+        fig.suptitle('PWM Channels', fontsize=14, fontweight='bold')
+        
+        pwm_data = data['pwm']
+        
+        # PWM Channel 0
+        axes[0].plot(pwm_data['t'], pwm_data['c0'], 'b-', linewidth=1.5, label='Channel 0')
+        axes[0].set_ylabel('PWM Channel 0')
+        axes[0].grid(True, alpha=0.3)
+        axes[0].legend()
+        
+        # PWM Channel 1
+        axes[1].plot(pwm_data['t'], pwm_data['c1'], 'g-', linewidth=1.5, label='Channel 1')
+        axes[1].set_ylabel('PWM Channel 1')
+        axes[1].grid(True, alpha=0.3)
+        axes[1].legend()
+        
+        # PWM Channel 2
+        axes[2].plot(pwm_data['t'], pwm_data['c2'], 'r-', linewidth=1.5, label='Channel 2')
+        axes[2].set_ylabel('PWM Channel 2')
+        axes[2].grid(True, alpha=0.3)
+        axes[2].legend()
+        
+        # PWM Channel 3
+        axes[3].plot(pwm_data['t'], pwm_data['c3'], 'm-', linewidth=1.5, label='Channel 3')
+        axes[3].set_ylabel('PWM Channel 3')
+        axes[3].set_xlabel('Time (seconds)')
+        axes[3].grid(True, alpha=0.3)
+        axes[3].legend()
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, 'pwm_channels.png'), dpi=300, bbox_inches='tight')
+    
+    # 7. Combined Overview Plot
     if len(euler_angles) > 0 and 'odom' in data and len(data['odom']) > 0:
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
         fig.suptitle('Flight Data Overview', fontsize=16, fontweight='bold')
@@ -534,6 +570,26 @@ def save_data_to_csv(data: Dict[str, np.ndarray], output_dir: str = "plots") -> 
                     'quat_w': row['odom_q3']
                 })
         print(f"Saved {len(data['odom'])} odometry samples")
+    
+    # Save PWM data
+    if 'pwm' in data and len(data['pwm']) > 0:
+        pwm_csv_path = os.path.join(output_dir, 'pwm_data.csv')
+        print(f"Saving PWM data to {pwm_csv_path}...")
+        
+        with open(pwm_csv_path, 'w', newline='') as csvfile:
+            fieldnames = ['timestamp', 'channel_0', 'channel_1', 'channel_2', 'channel_3']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for row in data['pwm']:
+                writer.writerow({
+                    'timestamp': row['t'],
+                    'channel_0': row['c0'],
+                    'channel_1': row['c1'],
+                    'channel_2': row['c2'],
+                    'channel_3': row['c3']
+                })
+        print(f"Saved {len(data['pwm'])} PWM samples")
     
     print(f"CSV files saved to {output_dir}/ directory")
 

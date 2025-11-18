@@ -355,7 +355,7 @@ if __name__ == "__main__":
     #compare_and_plot("rosbag2_2025_07_09-19_13_24", topic1, topic2)  # fixed roll/pitch estimation, small gains
     #compare_and_plot("rosbag2_2025_07_15-20_54_12", topic1, topic2)  # 
     #compare_and_plot("rosbag2_2025_07_29-14_31_12", topic1, topic2)  # without correction
-    compare_and_plot("rosbag2_2025_08_19-15_21_13", topic1, topic2)
+    #compare_and_plot("rosbag2_2025_08_28-23_38_04", topic1, topic2)
     #compare_and_plot("output", topic1, topic2)
 
     # Add single topic plotting for cerebri/out/odometry
@@ -367,6 +367,8 @@ if __name__ == "__main__":
     #plot_single_topic_odometry("rosbag2_2025_07_09-17_56_59", topic2) # gazebo stationary, increased noise, increased gyro bias
     # plot_single_topic_odometry("rosbag2_2025_07_09-20_34_20", topic1)
     # plot_single_topic_odometry("rosbag2_2025_07_09-20_34_20", topic2)
+
+
 
     rclpy.shutdown()
     plt.show()

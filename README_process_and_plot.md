@@ -71,13 +71,15 @@ The script generates the following files in the specified output directory:
 3. **angular_velocity.png** - IMU angular velocity measurements
 4. **linear_acceleration.png** - IMU linear acceleration measurements
 5. **magnetic_field.png** - Magnetic field measurements
-6. **overview.png** - Combined overview with key parameters and XY trajectory
+6. **pwm_channels.png** - PWM channel outputs
+7. **overview.png** - Combined overview with key parameters and XY trajectory
 
 ### CSV Files
 1. **imu_data.csv** - IMU data with columns: `timestamp,gyro_x,gyro_y,gyro_z,accel_x,accel_y,accel_z`
 2. **magnetometer_data.csv** - Magnetometer data with columns: `timestamp,mag_x,mag_y,mag_z`
 3. **imu_q31_data.csv** - High-resolution IMU data with temperature: `timestamp,gyro_x,gyro_y,gyro_z,accel_x,accel_y,accel_z,temperature`
 4. **odometry_data.csv** - Position and orientation data: `timestamp,pos_x,pos_y,pos_z,quat_x,quat_y,quat_z,quat_w`
+5. **pwm_data.csv** - PWM channel data: `timestamp,channel_0,channel_1,channel_2,channel_3`
 
 ### CSV File Format
 All CSV files include:
